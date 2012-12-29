@@ -113,14 +113,8 @@ create table gtfs_route_types (
   description text
 );
 
-insert into gtfs_route_types (route_type, description) values (0, 'Street Level Rail');
-insert into gtfs_route_types (route_type, description) values (1, 'Underground Rail');
-insert into gtfs_route_types (route_type, description) values (2, 'Intercity Rail');
-insert into gtfs_route_types (route_type, description) values (3, 'Bus');
-insert into gtfs_route_types (route_type, description) values (4, 'Ferry');
-insert into gtfs_route_types (route_type, description) values (5, 'Cable Car');
-insert into gtfs_route_types (route_type, description) values (6, 'Suspended Car');
-insert into gtfs_route_types (route_type, description) values (7, 'Steep Incline Mode');
+insert into gtfs_route_types (route_type, description) values (700, 'Non School Only');
+insert into gtfs_route_types (route_type, description) values (712, 'School Only');
 
 
 create table gtfs_routes (
