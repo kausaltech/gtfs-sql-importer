@@ -14,8 +14,8 @@ ALTER TABLE gtfs_routes
 
 ALTER TABLE gtfs_calendar_dates
   ADD CONSTRAINT gtfs_calendar_fkey
-  FOREIGN KEY (feed_index, service_id)
-  REFERENCES gtfs_calendar (feed_index, service_id);
+  FOREIGN KEY (feed_index, service_index)
+  REFERENCES gtfs_calendar (feed_index, service_index);
 
 ALTER TABLE gtfs_fare_attributes
   ADD CONSTRAINT gtfs_fare_attributes_fkey
@@ -26,8 +26,8 @@ ALTER TABLE gtfs_fare_attributes
 
 ALTER TABLE gtfs_fare_rules
   ADD CONSTRAINT gtfs_fare_rules_service_fkey 
-  FOREIGN KEY (feed_index, service_id)
-  REFERENCES gtfs_calendar (feed_index, service_id);
+  FOREIGN KEY (feed_index, service_index)
+  REFERENCES gtfs_calendar (feed_index, service_index);
 
 ALTER TABLE gtfs_fare_rules
   ADD CONSTRAINT gtfs_fare_rules_fare_id_fkey
@@ -48,15 +48,15 @@ ALTER TABLE gtfs_trips
 
 ALTER TABLE gtfs_trips
   ADD CONSTRAINT gtfs_trips_calendar_fkey
-  FOREIGN KEY (feed_index, service_id)
-  REFERENCES gtfs_calendar (feed_index, service_id);
+  FOREIGN KEY (feed_index, service_index)
+  REFERENCES gtfs_calendar (feed_index, service_index);
 
 -- gtfs_stop_times
 
 ALTER TABLE gtfs_stop_times
   ADD CONSTRAINT gtfs_stop_times_trips_fkey
-  FOREIGN KEY (feed_index, trip_id)
-  REFERENCES gtfs_trips (feed_index, trip_id);
+  FOREIGN KEY (feed_index, trip_index)
+  REFERENCES gtfs_trips (feed_index, trip_index);
 
 ALTER TABLE gtfs_stop_times
   ADD CONSTRAINT gtfs_stop_times_stops_fkey
@@ -67,8 +67,8 @@ ALTER TABLE gtfs_stop_times
 
 ALTER TABLE gtfs_frequencies
   ADD CONSTRAINT gtfs_frequencies_trip_fkey
-  FOREIGN KEY (feed_index, trip_id)
-  REFERENCES gtfs_trips (feed_index, trip_id);
+  FOREIGN KEY (feed_index, trip_index)
+  REFERENCES gtfs_trips (feed_index, trip_index);
 
 -- gtfs_transfers
 
@@ -94,5 +94,5 @@ ALTER TABLE gtfs_transfers
 
 ALTER TABLE gtfs_transfers
   ADD CONSTRAINT gtfs_transfers_service_fkey
-  FOREIGN KEY (feed_index, service_id)
-  REFERENCES gtfs_calendar (feed_index, service_id);
+  FOREIGN KEY (feed_index, service_index)
+  REFERENCES gtfs_calendar (feed_index, service_index);

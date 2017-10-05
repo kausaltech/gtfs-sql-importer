@@ -6,9 +6,9 @@ ALTER TABLE gtfs_agency
 
 ALTER TABLE gtfs_calendar
   ADD CONSTRAINT gtfs_calendar_pkey
-  PRIMARY KEY (feed_index, service_id);
+  PRIMARY KEY (feed_index, service_index);
 
-CREATE INDEX gtfs_calendar_service_id ON gtfs_calendar (feed_index, service_id);
+CREATE INDEX gtfs_calendar_service_id ON gtfs_calendar (feed_index, service_index);
 
 ALTER TABLE gtfs_stops
   ADD CONSTRAINT gtfs_stops_pkey
@@ -30,15 +30,13 @@ ALTER TABLE gtfs_trips
   ADD CONSTRAINT gtfs_trips_pkey
   PRIMARY KEY (feed_index, trip_id);
 
-CREATE INDEX gtfs_trips_service_id ON gtfs_trips (feed_index, service_id);
+CREATE INDEX gtfs_trips_service_idx ON gtfs_trips (feed_index, service_index);
 
 ALTER TABLE gtfs_stop_times
   ADD CONSTRAINT gtfs_stop_times_pkey
-  PRIMARY KEY (feed_index, trip_id, stop_sequence);
+  PRIMARY KEY (feed_index, trip_inded, stop_sequence);
 
-CREATE INDEX gtfs_stop_times_key ON gtfs_stop_times (trip_id, stop_id);
-CREATE INDEX arr_time_index ON gtfs_stop_times (arrival_time_seconds);
-CREATE INDEX dep_time_index ON gtfs_stop_times (departure_time_seconds);
+CREATE INDEX gtfs_stop_times_key ON gtfs_stop_times (trip_index, service_index);
 
 ALTER TABLE gtfs_shape_geoms
   ADD CONSTRAINT gtfs_shape_geom_pkey
@@ -46,6 +44,6 @@ ALTER TABLE gtfs_shape_geoms
 
 ALTER TABLE gtfs_frequencies
   ADD CONSTRAINT gtfs_frequencies_pkey
-  PRIMARY KEY (feed_index, trip_id, start_time);
+  PRIMARY KEY (feed_index, trip_index, start_time);
 
 COMMIT;

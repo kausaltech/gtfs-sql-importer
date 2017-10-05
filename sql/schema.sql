@@ -94,9 +94,33 @@ CREATE TABLE gtfs_timepoints (
   description text
 );
 
+CREATE TABLE gtfs_index_service (
+  service_index SERIAL PRIMARY KEY,
+  service_id text,
+  CONSTRAINT service_id_uniq UNIQUE (service_id)
+);
+
+CREATE OR REPLACE FUNCTION gtfs_service_index_insert()
+  RETURNS TRIGGER AS $$
+  BEGIN
+  INSERT INTO gtfs_index_trip (service_id) VALUES (NEW.service_id)
+    ON CONFLICT (service_id) DO UPDATE SET service_id = excluded.service_id
+    RETURNING service_index INTO NEW.service_index;
+  NEW.service_id = NULL;
+  RETURN NEW;
+  END;
+  $$
+LANGUAGE plpgsql;
+
+CREATE TRIGGER gtfs_calendar_service_index_trigger BEFORE INSERT ON gtfs_calendar
+  FOR EACH ROW
+  WHEN (NEW.service_index IS NULL)
+  EXECUTE PROCEDURE gtfs_service_index_insert();
+
 CREATE TABLE gtfs_calendar (
   feed_index integer not null,
-  service_id text,
+  service_index int,
+  service_id text not null,
   monday int not null,
   tuesday int not null,
   wednesday int not null,
@@ -106,11 +130,11 @@ CREATE TABLE gtfs_calendar (
   sunday int not null,
   start_date date not null,
   end_date date not null,
-  CONSTRAINT gtfs_calendar_pkey PRIMARY KEY (feed_index, service_id),
+  CONSTRAINT gtfs_calendar_pkey PRIMARY KEY (feed_index, service_index),
   CONSTRAINT gtfs_calendar_feed_fkey FOREIGN KEY (feed_index)
     REFERENCES gtfs_feed_info (feed_index) ON DELETE CASCADE
 );
-CREATE INDEX gtfs_calendar_service_id ON gtfs_calendar (service_id);
+CREATE INDEX gtfs_calendar_service_index ON gtfs_calendar (service_index);
 
 CREATE TABLE gtfs_stops (
   feed_index int not null,
@@ -179,14 +203,20 @@ CREATE TABLE gtfs_routes (
 
 CREATE TABLE gtfs_calendar_dates (
   feed_index int not null,
+  service_index int,
   service_id text,
   date date not null,
   exception_type int REFERENCES gtfs_exception_types(exception_type) --,
-  -- CONSTRAINT gtfs_calendar_fkey FOREIGN KEY (feed_index, service_id)
-    -- REFERENCES gtfs_calendar (feed_index, service_id)
+  -- CONSTRAINT gtfs_calendar_fkey FOREIGN KEY (feed_index, service_index)
+    -- REFERENCES gtfs_calendar (feed_index, service_index)
 );
 
 CREATE INDEX gtfs_calendar_dates_dateidx ON gtfs_calendar_dates (date);
+
+CREATE TRIGGER gtfs_calendar_dates_service_index_trigger BEFORE INSERT ON gtfs_calendar_dates
+  FOR EACH ROW
+  WHEN (NEW.service_index IS NULL)
+  EXECUTE PROCEDURE gtfs_service_index_insert();
 
 CREATE TABLE gtfs_payment_methods (
   payment_method int PRIMARY KEY,
@@ -219,8 +249,8 @@ CREATE TABLE gtfs_fare_rules (
   contains_id text,
   -- unofficial features
   service_id text default null,
-  -- CONSTRAINT gtfs_fare_rules_service_fkey FOREIGN KEY (feed_index, service_id)
-  -- REFERENCES gtfs_calendar (feed_index, service_id),
+  -- CONSTRAINT gtfs_fare_rules_service_fkey FOREIGN KEY (feed_index, service_index)
+  -- REFERENCES gtfs_calendar (feed_index, service_index),
   -- CONSTRAINT gtfs_fare_rules_fare_id_fkey FOREIGN KEY (feed_index, fare_id)
   -- REFERENCES gtfs_fare_attributes (feed_index, fare_id),
   -- CONSTRAINT gtfs_fare_rules_route_id_fkey FOREIGN KEY (feed_index, route_id)
@@ -278,15 +308,23 @@ CREATE TABLE gtfs_shape_geoms (
 -- Add the_geom column to the gtfs_shape_geoms table - a 2D linestring geometry
 SELECT AddGeometryColumn('gtfs_shape_geoms', 'the_geom', 4326, 'LINESTRING', 2);
 
+CREATE TABLE gtfs_index_trip (
+  trip_index SERIAL PRIMARY KEY,
+  trip_id text,
+  CONSTRAINT trip_id_uniq UNIQUE (trip_id)
+);
+
 CREATE TABLE gtfs_trips (
   feed_index int not null,
   route_id text not null,
-  service_id text not null,
-  trip_id text not null,
+  trip_index int not null,
+  service_index int not null,
   trip_headsign text,
   direction_id int,
   block_id text,
   shape_id text,
+  trip_id text,
+  service_id text,
   trip_short_name text,
   wheelchair_accessible int REFERENCES gtfs_wheelchair_accessible(wheelchair_accessible),
 
@@ -294,21 +332,44 @@ CREATE TABLE gtfs_trips (
   trip_type text default null,
   exceptional int default null,
   bikes_allowed int default null,
-  CONSTRAINT gtfs_trips_pkey PRIMARY KEY (feed_index, trip_id),
+  CONSTRAINT gtfs_trips_pkey PRIMARY KEY (feed_index, trip_index),
   -- CONSTRAINT gtfs_trips_route_id_fkey FOREIGN KEY (feed_index, route_id)
   -- REFERENCES gtfs_routes (feed_index, route_id),
-  -- CONSTRAINT gtfs_trips_calendar_fkey FOREIGN KEY (feed_index, service_id)
-  -- REFERENCES gtfs_calendar (feed_index, service_id),
+  -- CONSTRAINT gtfs_trips_calendar_fkey FOREIGN KEY (feed_index, service_index)
+  -- REFERENCES gtfs_calendar (feed_index, service_index),
   CONSTRAINT gtfs_trips_feed_fkey FOREIGN KEY (feed_index)
     REFERENCES gtfs_feed_info (feed_index) ON DELETE CASCADE
 );
 
-CREATE INDEX gtfs_trips_trip_id ON gtfs_trips (trip_id);
-CREATE INDEX gtfs_trips_service_id ON gtfs_trips (feed_index, service_id);
+CREATE INDEX gtfs_trips_trip_idx ON gtfs_trips (trip_index);
+CREATE INDEX gtfs_trips_service_idx ON gtfs_trips (feed_index, service_index);
+
+CREATE OR REPLACE FUNCTION gtfs_trip_index_insert()
+  RETURNS TRIGGER AS $$
+  BEGIN
+  INSERT INTO gtfs_index_trip (trip_id) VALUES (NEW.trip_id)
+    ON CONFLICT (trip_id) DO UPDATE SET trip_id = excluded.trip_id
+    RETURNING trip_index INTO NEW.trip_index;
+  NEW.trip_id = NULL;
+  RETURN NEW;
+  END;
+  $$
+LANGUAGE plpgsql;
+
+CREATE TRIGGER gtfs_trips_trip_index_trigger BEFORE INSERT ON gtfs_trips
+  FOR EACH ROW
+  WHEN (NEW.trip_index IS NULL)
+  EXECUTE PROCEDURE gtfs_trip_index_insert();
+
+CREATE TRIGGER gtfs_trips_service_index_trigger BEFORE INSERT ON gtfs_trips
+  FOR EACH ROW
+  WHEN (NEW.service_index IS NULL)
+  EXECUTE PROCEDURE gtfs_service_index_insert();
 
 CREATE TABLE gtfs_stop_times (
   feed_index int not null,
-  trip_id text not null,
+  trip_index int not null,
+  trip_id text,
   -- Check that casting to time interval works.
   arrival_time interval CHECK (arrival_time::interval = arrival_time::interval),
   departure_time interval CHECK (departure_time::interval = departure_time::interval),
@@ -326,17 +387,15 @@ CREATE TABLE gtfs_stop_times (
   continuous_pickup  int default null,
   arrival_time_seconds int default null,
   departure_time_seconds int default null,
-  CONSTRAINT gtfs_stop_times_pkey PRIMARY KEY (feed_index, trip_id, stop_sequence),
-  -- CONSTRAINT gtfs_stop_times_trips_fkey FOREIGN KEY (feed_index, trip_id)
-  -- REFERENCES gtfs_trips (feed_index, trip_id),
+  CONSTRAINT gtfs_stop_times_pkey PRIMARY KEY (feed_index, trip_index, stop_sequence),
+  -- CONSTRAINT gtfs_stop_times_trips_fkey FOREIGN KEY (feed_index, trip_index)
+  -- REFERENCES gtfs_trips (feed_index, trip_index),
   -- CONSTRAINT gtfs_stop_times_stops_fkey FOREIGN KEY (feed_index, stop_id)
   -- REFERENCES gtfs_stops (feed_index, stop_id),
   CONSTRAINT gtfs_stop_times_feed_fkey FOREIGN KEY (feed_index)
     REFERENCES gtfs_feed_info (feed_index) ON DELETE CASCADE
 );
-CREATE INDEX gtfs_stop_times_key ON gtfs_stop_times (trip_id, stop_id);
-CREATE INDEX arr_time_index ON gtfs_stop_times (arrival_time_seconds);
-CREATE INDEX dep_time_index ON gtfs_stop_times (departure_time_seconds);
+CREATE INDEX gtfs_stop_times_key ON gtfs_stop_times (trip_index, stop_id);
 
 -- "Safely" locate a point on a (possibly complicated) line by using minimum and maximum distances.
 -- Unlike st_LineLocatePoint, this accepts and returns absolute distances, not fractions
@@ -366,18 +425,13 @@ CREATE OR REPLACE FUNCTION gtfs_dist_insert()
     FROM gtfs_trips
       LEFT JOIN gtfs_shape_geoms AS route USING (feed_index, shape_id)
       LEFT JOIN gtfs_stops as stop USING (feed_index)
-      WHERE trip_id = NEW.trip_id
+      WHERE trip_index = NEW.trip_index
         AND stop_id = NEW.stop_id
   )::NUMERIC;
   RETURN NEW;
   END;
   $$
 LANGUAGE plpgsql;
-
-CREATE TRIGGER gtfs_stop_times_dist_row_trigger BEFORE INSERT ON gtfs_stop_times
-  FOR EACH ROW
-  WHEN (NEW.shape_dist_traveled IS NULL)
-  EXECUTE PROCEDURE gtfs_dist_insert();
 
 -- Correct out-of-order shape_dist_traveled fields.
 CREATE OR REPLACE FUNCTION gtfs_dist_update()
@@ -387,29 +441,39 @@ CREATE OR REPLACE FUNCTION gtfs_dist_update()
   d as (
     SELECT
       feed_index,
-      trip_id,
+      trip_index,
       stop_id,
       coalesce(lag(shape_dist_traveled) over (trip), 0) AS lag,
       shape_dist_traveled AS dist,
       lead(shape_dist_traveled) over (trip) AS lead
     FROM gtfs_stop_times
       INNER JOIN f USING (feed_index)
-    WINDOW trip AS (PARTITION BY feed_index, trip_id ORDER BY stop_sequence)
+    WINDOW trip AS (PARTITION BY feed_index, trip_index ORDER BY stop_sequence)
   )
   UPDATE gtfs_stop_times s
     SET shape_dist_traveled = safe_locate(r.the_geom, p.the_geom, lag::numeric, coalesce(lead, length)::numeric, length::numeric)
   FROM d
     LEFT JOIN gtfs_stops p USING (feed_index, stop_id)
-    LEFT JOIN gtfs_trips USING (feed_index, trip_id)
+    LEFT JOIN gtfs_trips USING (feed_index, trip_index)
     LEFT JOIN gtfs_shape_geoms r USING (feed_index, shape_id)
   WHERE
-      (s.feed_index, s.trip_id, s.stop_id) = (d.feed_index, d.trip_id, d.stop_id)
+      (s.feed_index, s.trip_index, s.stop_id) = (d.feed_index, d.trip_index, d.stop_id)
       AND COALESCE(lead, length) > lag
       AND (dist > COALESCE(lead, length) OR dist < lag);
   RETURN NULL;
   END;
   $$
 LANGUAGE plpgsql;
+
+CREATE TRIGGER gtfs_stop_times_a_trip_index_trigger BEFORE INSERT ON gtfs_stop_times
+  FOR EACH ROW
+  WHEN (NEW.trip_index IS NULL)
+  EXECUTE PROCEDURE gtfs_trip_index_insert();
+
+CREATE TRIGGER gtfs_stop_times_b_dist_row_trigger BEFORE INSERT ON gtfs_stop_times
+  FOR EACH ROW
+  WHEN (NEW.shape_dist_traveled IS NULL)
+  EXECUTE PROCEDURE gtfs_dist_insert();
 
 CREATE TRIGGER gtfs_stop_times_dist_stmt_trigger AFTER INSERT ON gtfs_stop_times
   FOR EACH STATEMENT EXECUTE PROCEDURE gtfs_dist_update();
@@ -448,8 +512,8 @@ CREATE TABLE gtfs_transfers (
   --  REFERENCES gtfs_routes (feed_index, route_id),
   --CONSTRAINT gtfs_transfers_to_route_fkey FOREIGN KEY (feed_index, to_route_id)
   --  REFERENCES gtfs_routes (feed_index, route_id),
-  --CONSTRAINT gtfs_transfers_service_fkey FOREIGN KEY (feed_index, service_id)
-  --  REFERENCES gtfs_calendar (feed_index, service_id),
+  --CONSTRAINT gtfs_transfers_service_fkey FOREIGN KEY (feed_index, service_index)
+  --  REFERENCES gtfs_calendar (feed_index, service_index),
   CONSTRAINT gtfs_transfers_feed_fkey FOREIGN KEY (feed_index)
     REFERENCES gtfs_feed_info (feed_index) ON DELETE CASCADE
 );
