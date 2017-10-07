@@ -21,6 +21,8 @@ DROP TABLE IF EXISTS gtfs_exception_types cascade;
 DROP TABLE IF EXISTS gtfs_wheelchair_boardings cascade;
 DROP TABLE IF EXISTS gtfs_wheelchair_accessible cascade;
 DROP TABLE IF EXISTS gtfs_transfer_types cascade;
+DROP TABLE IF EXISTS gtfs_index_service cascade;
+DROP TABLE IF EXISTS gtfs_index_trip cascade;
 
 BEGIN;
 
@@ -103,7 +105,7 @@ CREATE TABLE gtfs_index_service (
 CREATE OR REPLACE FUNCTION gtfs_service_index_insert()
   RETURNS TRIGGER AS $$
   BEGIN
-  INSERT INTO gtfs_index_trip (service_id) VALUES (NEW.service_id)
+  INSERT INTO gtfs_index_service (service_id) VALUES (NEW.service_id)
     ON CONFLICT (service_id) DO UPDATE SET service_id = excluded.service_id
     RETURNING service_index INTO NEW.service_index;
   NEW.service_id = NULL;
@@ -112,15 +114,10 @@ CREATE OR REPLACE FUNCTION gtfs_service_index_insert()
   $$
 LANGUAGE plpgsql;
 
-CREATE TRIGGER gtfs_calendar_service_index_trigger BEFORE INSERT ON gtfs_calendar
-  FOR EACH ROW
-  WHEN (NEW.service_index IS NULL)
-  EXECUTE PROCEDURE gtfs_service_index_insert();
-
 CREATE TABLE gtfs_calendar (
   feed_index integer not null,
   service_index int,
-  service_id text not null,
+  service_id text,
   monday int not null,
   tuesday int not null,
   wednesday int not null,
@@ -135,6 +132,11 @@ CREATE TABLE gtfs_calendar (
     REFERENCES gtfs_feed_info (feed_index) ON DELETE CASCADE
 );
 CREATE INDEX gtfs_calendar_service_index ON gtfs_calendar (service_index);
+
+CREATE TRIGGER gtfs_calendar_service_index_trigger BEFORE INSERT ON gtfs_calendar
+  FOR EACH ROW
+  WHEN (NEW.service_index IS NULL)
+  EXECUTE PROCEDURE gtfs_service_index_insert();
 
 CREATE TABLE gtfs_stops (
   feed_index int not null,
@@ -248,6 +250,7 @@ CREATE TABLE gtfs_fare_rules (
   destination_id text,
   contains_id text,
   -- unofficial features
+  service_index int default null,
   service_id text default null,
   -- CONSTRAINT gtfs_fare_rules_service_fkey FOREIGN KEY (feed_index, service_index)
   -- REFERENCES gtfs_calendar (feed_index, service_index),
@@ -258,6 +261,11 @@ CREATE TABLE gtfs_fare_rules (
   CONSTRAINT gtfs_fare_rules_service_feed_fkey FOREIGN KEY (feed_index)
     REFERENCES gtfs_feed_info (feed_index) ON DELETE CASCADE
 );
+
+CREATE TRIGGER gtfs_fare_rules_service_index_trigger BEFORE INSERT ON gtfs_fare_rules
+  FOR EACH ROW
+  WHEN (NEW.service_index IS NULL and NEW.service_id IS NOT NULL)
+  EXECUTE PROCEDURE gtfs_service_index_insert();
 
 CREATE TABLE gtfs_shapes (
   feed_index int not null,
@@ -480,6 +488,7 @@ CREATE TRIGGER gtfs_stop_times_dist_stmt_trigger AFTER INSERT ON gtfs_stop_times
 
 CREATE TABLE gtfs_frequencies (
   feed_index int not null,
+  trip_index int,
   trip_id text,
   start_time text not null CHECK (start_time::interval = start_time::interval),
   end_time text not null CHECK (end_time::interval = end_time::interval),
@@ -487,12 +496,17 @@ CREATE TABLE gtfs_frequencies (
   exact_times int,
   start_time_seconds int,
   end_time_seconds int,
-  CONSTRAINT gtfs_frequencies_pkey PRIMARY KEY (feed_index, trip_id, start_time),
-  -- CONSTRAINT gtfs_frequencies_trip_fkey FOREIGN KEY (feed_index, trip_id)
-  --  REFERENCES gtfs_trips (feed_index, trip_id),
+  CONSTRAINT gtfs_frequencies_pkey PRIMARY KEY (feed_index, trip_index, start_time),
+  -- CONSTRAINT gtfs_frequencies_trip_fkey FOREIGN KEY (feed_index, trip_index)
+  --  REFERENCES gtfs_trips (feed_index, trip_index),
   CONSTRAINT gtfs_frequencies_feed_fkey FOREIGN KEY (feed_index)
     REFERENCES gtfs_feed_info (feed_index) ON DELETE CASCADE
 );
+
+CREATE TRIGGER gtfs_frequencies_trip_index_trigger BEFORE INSERT ON gtfs_frequencies
+  FOR EACH ROW
+  WHEN (NEW.trip_index IS NULL)
+  EXECUTE PROCEDURE gtfs_trip_index_insert();
 
 CREATE TABLE gtfs_transfers (
   feed_index int not null,
@@ -503,6 +517,7 @@ CREATE TABLE gtfs_transfers (
   -- Unofficial fields
   from_route_id text default null,
   to_route_id text default null,
+  service_index int default null,
   service_id text default null,
   -- CONSTRAINT gtfs_transfers_from_stop_fkey FOREIGN KEY (feed_index, from_stop_id)
   --  REFERENCES gtfs_stops (feed_index, stop_id),
@@ -517,6 +532,11 @@ CREATE TABLE gtfs_transfers (
   CONSTRAINT gtfs_transfers_feed_fkey FOREIGN KEY (feed_index)
     REFERENCES gtfs_feed_info (feed_index) ON DELETE CASCADE
 );
+
+CREATE TRIGGER gtfs_transfers_service_index_trigger BEFORE INSERT ON gtfs_transfers
+  FOR EACH ROW
+  WHEN (NEW.service_index IS NULL and NEW.service_id is NOT NULL)
+  EXECUTE PROCEDURE gtfs_service_index_insert();
 
 insert into gtfs_exception_types (exception_type, description) values 
   (1, 'service has been added'),

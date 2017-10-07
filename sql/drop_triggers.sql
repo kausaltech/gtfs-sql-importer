@@ -15,3 +15,9 @@ DROP TRIGGER IF EXISTS gtfs_stop_times_b_dist_row_trigger ON gtfs_stop_times;
 DROP TRIGGER IF EXISTS gtfs_stop_times_dist_stmt_trigger ON gtfs_stop_times;
 
 DROP TRIGGER IF EXISTS gtfs_stop_geom_trigger ON gtfs_stops;
+
+DROP TRIGGER IF EXISTS gtfs_fare_rules_service_index_trigger ON gtfs_fare_rules;
+
+DROP TRIGGER IF EXISTS gtfs_frequencies_trip_index_trigger ON gtfs_frequencies;
+
+DROP TRIGGER IF EXISTS gtfs_transfers_service_index_trigger ON gtfs_transfers;

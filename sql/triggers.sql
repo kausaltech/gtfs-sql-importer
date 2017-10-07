@@ -41,3 +41,18 @@ CREATE TRIGGER gtfs_stop_times_dist_stmt_trigger AFTER INSERT ON gtfs_stop_times
 
 CREATE TRIGGER gtfs_stop_geom_trigger BEFORE INSERT OR UPDATE ON gtfs_stops
     FOR EACH ROW EXECUTE PROCEDURE gtfs_stop_geom_update();
+
+CREATE TRIGGER gtfs_fare_rules_service_index_trigger BEFORE INSERT ON gtfs_fare_rules
+  FOR EACH ROW
+  WHEN (NEW.service_index IS NULL and NEW.service_id IS NOT NULL)
+  EXECUTE PROCEDURE gtfs_service_index_insert();
+
+CREATE TRIGGER gtfs_frequencies_trip_index_trigger BEFORE INSERT ON gtfs_frequencies
+  FOR EACH ROW
+  WHEN (NEW.trip_index IS NULL)
+  EXECUTE PROCEDURE gtfs_trip_index_insert();
+
+CREATE TRIGGER gtfs_transfers_service_index_trigger BEFORE INSERT ON gtfs_transfers
+  FOR EACH ROW
+  WHEN (NEW.service_index IS NULL and NEW.service_id is NOT NULL)
+  EXECUTE PROCEDURE gtfs_service_index_insert();
