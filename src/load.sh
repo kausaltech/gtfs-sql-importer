@@ -1,12 +1,14 @@
 #!/bin/bash
-TABLES="agency calendar calendar_dates routes shapes stops trips stop_times transfers frequencies fare_attributes fare_rules"
-
-# This script takes two arguments: 
-# A zip file containing gtfs files, and a schema name (defaults to gtfs)
-ZIP=$1
-SCHEMA=${2=gtfs}
-FILES=$(unzip -l "${ZIP}" | awk '{print $NF}' | grep .txt)
 set -e
+
+# This script takes three arguments:
+# - A zip file containing gtfs files
+# - A schema name
+# - A list of tables to import (e.g. "agency" to import agency.txt to SCHEMA.agency)
+ZIP="$1"
+shift; SCHEMA="$1"
+shift; TABLES="$*"
+FILES=$(unzip -l "${ZIP}" | awk '{print $NF}' | grep .txt)
 
 # Called with name of table
 function import_stdin()

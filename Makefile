@@ -1,10 +1,8 @@
 SHELL = bash
 
-TABLES = stop_times trips routes \
-	calendar_dates calendar \
-	shapes stops \
-	transfers frequencies \
-	fare_attributes fare_rules agency feed_info
+TABLES = agency calendar calendar_dates routes \
+	shapes stops trips stop_times transfers \
+	frequencies fare_attributes fare_rules
 
 PGUSER ?= $(USER)
 PGDATABASE ?= $(PGUSER)
@@ -28,7 +26,7 @@ drop_indices drop_constraints drop_triggers: drop_%: sql/drop_%.sql
 
 load: $(GTFS)
 	[[ -z "$$(psql -Atc "select feed_index from $(SCHEMA).feed_info where feed_file = '$(GTFS)'")" ]] && \
-		$(SHELL) src/load.sh $(GTFS) $(SCHEMA)
+		$(SHELL) src/load.sh $(GTFS) $(SCHEMA) $(TABLES)
 	@$(psql) -F' ' -tAc "SELECT 'loaded feed with index: ', feed_index FROM $(SCHEMA).feed_info WHERE feed_file = '$(GTFS)'"
 
 vacuum: ; $(psql) -c "VACUUM ANALYZE"
