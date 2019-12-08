@@ -33,7 +33,7 @@ function import_stdin()
 }
 
 # Check if this archive already exists in the db
-possible_feed_index=$(psql -A -t -c "SELECT feed_index FROM ${SCHEMA}.feed_info WHERE feed_file = '$1'")
+possible_feed_index=$(psql -A -t -c "SELECT feed_index FROM ${SCHEMA}.feed_info WHERE feed_file = '$ZIP'")
 # If not, import the feed_info
 if [ -z $possible_feed_index ]; then
 
@@ -43,13 +43,13 @@ if [ -z $possible_feed_index ]; then
         # The archive includes "feed_info", so load that into the table
         echo "Loading feed_info from dataset"
         import_stdin "feed_info"
-        psql -c "UPDATE ${SCHEMA}.feed_info SET feed_file = '$1' WHERE feed_index = (SELECT max(feed_index) FROM ${SCHEMA}.feed_info)"
+        psql -c "UPDATE ${SCHEMA}.feed_info SET feed_file = '$ZIP' WHERE feed_index = (SELECT max(feed_index) FROM ${SCHEMA}.feed_info)"
     else
         ADD_DATES=true
         # get the min and max calendar dates for this
         echo "No feed_info file found, constructing one"
         echo "INSERT INTO ${SCHEMA}.feed_info" 1>&2
-        psql -c "INSERT INTO ${SCHEMA}.feed_info (feed_file) VALUES ('$1');"
+        psql -c "INSERT INTO ${SCHEMA}.feed_info (feed_file) VALUES ('$ZIP');"
     fi
 
     # Save the current feed_index
