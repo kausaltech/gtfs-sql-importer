@@ -279,7 +279,7 @@ CREATE TABLE shape_geoms (
   feed_index int not null,
   shape_id text not null,
   length numeric(12, 2) not null,
-  CONSTRAINT shape_geom_pkey PRIMARY KEY (feed_index, shape_id)
+  CONSTRAINT shape_geoms_pkey PRIMARY KEY (feed_index, shape_id)
 );
 -- Add the_geom column to the shape_geoms table - a 2D linestring geometry
 SELECT AddGeometryColumn(:'schema', 'shape_geoms', 'the_geom', 4326, 'LINESTRING', 2);
