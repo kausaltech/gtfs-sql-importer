@@ -24,6 +24,7 @@ DROP TABLE IF EXISTS exception_types cascade;
 DROP TABLE IF EXISTS wheelchair_boardings cascade;
 DROP TABLE IF EXISTS wheelchair_accessible cascade;
 DROP TABLE IF EXISTS transfer_types cascade;
+DROP TABLE IF EXISTS continuous_pickup cascade;
 
 BEGIN;
 
@@ -148,12 +149,12 @@ CREATE TABLE stops (
   platform_code text default null,
   CONSTRAINT stops_pkey PRIMARY KEY (feed_index, stop_id)
 );
-SELECT AddGeometryColumn(:'schema', 'stops', 'the_geom', 4326, 'POINT', 2);
+SELECT AddGeometryColumn(:'schema', 'stops', 'the_geom', 3067, 'POINT', 2);
 
 -- trigger the_geom update with lat or lon inserted
 CREATE OR REPLACE FUNCTION stop_geom_update() RETURNS TRIGGER AS $stop_geom$
   BEGIN
-    NEW.the_geom = ST_SetSRID(ST_MakePoint(NEW.stop_lon, NEW.stop_lat), 4326);
+    NEW.the_geom = ST_Transform(ST_SetSRID(ST_MakePoint(NEW.stop_lon, NEW.stop_lat), 4326), 3067);
     RETURN NEW;
   END;
 $stop_geom$ LANGUAGE plpgsql;
@@ -259,7 +260,7 @@ CREATE OR REPLACE FUNCTION shape_update()
       feed_index,
       shape_id,
       ST_Length(ST_MakeLine(array_agg(geom ORDER BY shape_pt_sequence))::geography) as length,
-      ST_SetSRID(ST_MakeLine(array_agg(geom ORDER BY shape_pt_sequence)), 4326) AS the_geom
+      ST_Transform(ST_SetSRID(ST_MakeLine(array_agg(geom ORDER BY shape_pt_sequence)), 4326), 3067) AS the_geom
     FROM (
       SELECT
         feed_index,
@@ -287,7 +288,7 @@ CREATE TABLE shape_geoms (
   CONSTRAINT shape_geom_pkey PRIMARY KEY (feed_index, shape_id)
 );
 -- Add the_geom column to the shape_geoms table - a 2D linestring geometry
-SELECT AddGeometryColumn(:'schema', 'shape_geoms', 'the_geom', 4326, 'LINESTRING', 2);
+SELECT AddGeometryColumn(:'schema', 'shape_geoms', 'the_geom', 3067, 'LINESTRING', 2);
 
 CREATE TABLE trips (
   feed_index int not null,

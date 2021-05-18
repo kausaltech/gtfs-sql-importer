@@ -56,3 +56,7 @@ ALTER TABLE :schema.shape_geoms
 ALTER TABLE :schema.frequencies
   ADD CONSTRAINT frequencies_pkey
   PRIMARY KEY (feed_index, trip_id, start_time);
+
+CREATE INDEX IF NOT EXISTS shape_geoms_geom_idx
+  ON :schema.shape_geoms
+  USING GIST (the_geom);
